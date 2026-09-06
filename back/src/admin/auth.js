@@ -82,6 +82,7 @@ export async function handleAdminLogout(request, env) {
 
 export async function handleAdminCheck(request, env) {
   if (request.method === 'OPTIONS') return handleOptions()
+  if (request.method !== 'GET') return json(405, { error: '仅支持 GET' })
   const hash = await env.KV.get('admin:hash')
   const session = await getSession(env, request)
   return json(200, { initialized: !!hash, loggedIn: !!session })

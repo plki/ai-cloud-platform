@@ -1,8 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import ChatPage from '../pages/ChatPage.vue'
 
 const routes = [
-  { path: '/', component: ChatPage },
+  { path: '/', component: () => import('../pages/ChatPage.vue') },
   { path: '/admin', component: () => import('../pages/AdminLogin.vue') },
   { path: '/admin/dashboard', component: () => import('../pages/Dashboard.vue') },
   { path: '/admin/upstream', component: () => import('../pages/UpstreamConfig.vue') },

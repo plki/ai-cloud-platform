@@ -41,6 +41,8 @@ const status = reactive({ initialized: false, loggedIn: false })
 
 onMounted(async () => {
   await refresh()
+  password.value = ''
+  confirmPwd.value = ''
   if (status.initialized && status.loggedIn) {
     router.push('/admin/dashboard')
   }

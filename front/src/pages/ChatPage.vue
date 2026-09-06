@@ -137,11 +137,11 @@ onMounted(() => {
   }
 })
 
-watch(() => current.value?.messages, () => {
+watch([() => current.value?.messages, () => chat.comparing, () => chat.selectedModels.length], () => {
   nextTick(() => {
     if (msgEl.value) msgEl.value.scrollTop = msgEl.value.scrollHeight
   })
-}, { deep: true })
+})
 
 function onNew() {
   chat.newConversation()
@@ -150,6 +150,7 @@ function onNew() {
 
 function setModel(m) {
   settings.saveSettings({ ...settings.config, model: m })
+  availableModels.value = [m, ...availableModels.value.filter(x => x !== m)]
 }
 
 async function onSend(text) {
@@ -161,8 +162,14 @@ async function onSend(text) {
   const stream = await startStream(text, null)
   if (stream) {
     chat.busy = true
-    await processStream(stream)
+    try {
+      await processStream(stream)
+    } catch (e) {
+      chat.updateLastAssistant(`[流式错误] ${e.message}`)
+    }
     chat.busy = false
+  } else {
+    // stream 为 null 时 startStream 已添加错误消息，无需额外处理
   }
 }
 
@@ -203,7 +210,7 @@ async function startStream(text, modelOverride) {
 }
 
 async function processStream(res) {
-  chat.addMessage('assistant', '')
+  chat.updateLastAssistant('')
   const reader = res.body.getReader()
   const decoder = new TextDecoder()
   let buf = ''

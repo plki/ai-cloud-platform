@@ -28,11 +28,11 @@ import { ref, watch } from 'vue'
 const props = defineProps({ modelValue: String, disabled: Boolean })
 const emit = defineEmits(['update:modelValue', 'send', 'stop', 'upload'])
 
-const text = ref(props.modelValue || '')
+const text = ref('')
 const textareaEl = ref(null)
 const fileInput = ref(null)
 
-watch(() => props.modelValue, v => { text.value = v || '' })
+watch(() => props.modelValue, v => { text.value = v || '' }, { immediate: true })
 
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey) {

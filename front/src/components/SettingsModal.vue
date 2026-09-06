@@ -58,8 +58,11 @@ const form = reactive({
   model: settings.config.model || '',
 })
 
-onMounted(() => {
-  settings.fetchQuota()
+onMounted(async () => {
+  await settings.fetchQuota()
+  form.baseUrl = settings.config.baseUrl || ''
+  form.apiKey = settings.config.apiKey || ''
+  form.model = settings.config.model || ''
 })
 
 function onSave() {

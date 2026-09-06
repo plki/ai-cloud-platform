@@ -37,14 +37,23 @@ export async function handleChat(request, env) {
   if (!baseUrl) baseUrl = 'https://api.openai.com/v1'
 
   // 单模型 vs 多模型对比
-  const useCompare = Array.isArray(models) && models.length > 1
-  const targetModels = useCompare ? models : [model || (await getDefaultModel(env))]
+  let useCompare = Array.isArray(models) && models.length > 1
+  let targetModels
+  if (useCompare) {
+    targetModels = models
+  } else if (model) {
+    targetModels = [model]
+  } else {
+    const upstream = await getUpstream(env, {})
+    targetModels = [upstream.defaultModel || 'gpt-3.5-turbo']
+  }
 
   // 联网搜索（拼到第一条 user message 之前）
   let processedMessages = messages
   if (search) {
     try {
-      const searchResults = await performSearch(env, messages[messages.length - 1]?.content || '')
+      const lastUserText = [...messages].reverse().find(m => m.role === 'user')?.content || ''
+      const searchResults = await performSearch(env, lastUserText)
       if (searchResults) {
         processedMessages = [
           {
@@ -62,39 +71,25 @@ export async function handleChat(request, env) {
 
   // 文件作为 image_url 注入（多模态）
   if (files.length) {
-    const lastUserIdx = processedMessages.mapIndex?.(m => m.role === 'user') || processedMessages.length - 1
-    const lastUser = processedMessages[lastUserIdx]
-    if (lastUser && lastUser.role === 'user') {
+    // 找最后一条 user message
+    let lastUserIdx = -1
+    for (let i = processedMessages.length - 1; i >= 0; i--) {
+      if (processedMessages[i].role === 'user') { lastUserIdx = i; break }
+    }
+    if (lastUserIdx >= 0) {
+      const lastUser = processedMessages[lastUserIdx]
       lastUser.content = buildMultimodalContent(lastUser.content, files)
     }
   }
 
   const start = Date.now()
+  // 不记录 apiKey/baseUrl/用户消息内容到日志（仅记录元数据）
+  const logMeta = { subKeyId: body.subKeyId, latency_ms: Date.now() - start }
   if (useCompare) {
-    return streamMultiCompare(targetModels, processedMessages, baseUrl, apiKey, env, start)
+    return streamMultiCompare(targetModels, processedMessages, baseUrl, apiKey, env, start, logMeta)
   } else {
-    return streamSingle(targetModels[0], processedMessages, baseUrl, apiKey, env, start, body)
+    return streamSingle(targetModels[0], processedMessages, baseUrl, apiKey, env, start, logMeta)
   }
-}
-
-async function getDefaultModel(env) {
-  const raw = await env.KV.get('upstream:primary')
-  if (raw) {
-    try { return JSON.parse(raw).defaultModel || 'gpt-3.5-turbo' } catch {}
-  }
-  return 'gpt-3.5-turbo'
-}
-
-function buildMultimodalContent(text, files) {
-  const parts = [{ type: 'text', text }]
-  for (const url of files) {
-    if (/\.(png|jpg|jpeg|gif|webp)$/i.test(url)) {
-      parts.push({ type: 'image_url', image_url: { url } })
-    } else {
-      parts.push({ type: 'text', text: `[附件](${url})` })
-    }
-  }
-  return parts
 }
 
 // ===== Search =====
@@ -139,7 +134,7 @@ async function performSearch(env, query) {
 }
 
 // ===== Single-model SSE =====
-async function streamSingle(model, messages, baseUrl, apiKey, env, start, body) {
+async function streamSingle(model, messages, baseUrl, apiKey, env, start, logMeta) {
   let upstream
   try {
     upstream = await fetch(openaiUrl(baseUrl, '/chat/completions'), {
@@ -151,12 +146,12 @@ async function streamSingle(model, messages, baseUrl, apiKey, env, start, body) 
       body: JSON.stringify({ model, messages, stream: true }),
     })
   } catch (e) {
-    recordLog(env, { model, error: e.message, latency: Date.now() - start, ...body })
+    recordLog(env, { ...logMeta, model, error: e.message, latency_ms: Date.now() - start })
     return json(502, { error: '连接上游失败: ' + e.message })
   }
   if (!upstream.ok) {
     const t = await upstream.text().catch(() => '')
-    recordLog(env, { model, error: `HTTP ${upstream.status}: ${t.slice(0, 500)}`, latency: Date.now() - start, ...body })
+    recordLog(env, { ...logMeta, model, error: `HTTP ${upstream.status}: ${t.slice(0, 500)}`, latency_ms: Date.now() - start })
     return json(502, { error: `上游错误: ${t.slice(0, 500)}` })
   }
 
@@ -171,7 +166,7 @@ async function streamSingle(model, messages, baseUrl, apiKey, env, start, body) 
 }
 
 // ===== Multi-model compare =====
-async function streamMultiCompare(modelList, messages, baseUrl, apiKey, env, start) {
+async function streamMultiCompare(modelList, messages, baseUrl, apiKey, env, start, logMeta) {
   const { readable, writable } = new TransformStream()
   const writer = writable.getWriter()
   const enc = new TextEncoder()
@@ -222,7 +217,7 @@ async function streamMultiCompare(modelList, messages, baseUrl, apiKey, env, sta
     await Promise.all(calls)
     await writer.write(enc.encode(`event: all-done\ndata: [DONE]\n\n`))
     await writer.close()
-    recordLog(env, { model: modelList.join(','), latency: Date.now() - start })
+    recordLog(env, { ...logMeta, model: modelList.join(','), latency_ms: Date.now() - start })
   })()
 
   return new Response(readable, {

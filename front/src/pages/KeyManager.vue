@@ -53,22 +53,32 @@ async function loadKeys() {
 }
 
 async function toggle(k) {
-  await fetch('/api/admin/keys', {
+  const r = await fetch('/api/admin/keys', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'toggle', id: k.id }),
   })
-  loadKeys()
+  if (r.ok) {
+    loadKeys()
+  } else {
+    const j = await r.json().catch(() => ({}))
+    alert('操作失败：' + (j.error || r.statusText))
+  }
 }
 
 async function del(k) {
   if (!confirm('确定删除？')) return
-  await fetch('/api/admin/keys', {
+  const r = await fetch('/api/admin/keys', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action: 'delete', id: k.id }),
   })
-  loadKeys()
+  if (r.ok) {
+    loadKeys()
+  } else {
+    const j = await r.json().catch(() => ({}))
+    alert('删除失败：' + (j.error || r.statusText))
+  }
 }
 
 function formatTime(ts) {
