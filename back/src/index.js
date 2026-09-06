@@ -3,12 +3,8 @@ import { handleOptions, json } from './lib/http.js'
 import { handleChat, handleModels } from './chat.js'
 import { handleUpload } from './files.js'
 import { handleSearch } from './search.js'
-import { handleKeysApply, handleKeysStatus, handleAdminKeys } from './subkeys.js'
-import {
-  handleAdminInit, handleAdminLogin, handleAdminLogout, handleAdminCheck,
-  handleAdminConfig, handleAdminTest, handleAdminSearchConfig,
-  handleAdminLogs, handleAdminStats,
-} from './admin/index.js'
+import { handleKeysApply, handleKeysStatus } from './subkeys.js'
+import { handleAdminInit, handleAdminLogin, handleAdminLogout, handleAdminCheck, handleAdminConfig, handleAdminTest, handleAdminSearchConfig, handleAdminKeys, handleAdminLogs, handleAdminStats } from './admin/index.js'
 
 export default {
   async fetch(request, env, ctx) {

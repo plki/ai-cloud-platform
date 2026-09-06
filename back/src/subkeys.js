@@ -86,10 +86,4 @@ export async function handleKeysStatus(request, env) {
 }
 
 // Admin-level key management (called from admin routes)
-export async function handleAdminKeys(request, env) {
-  if (request.method === 'GET') {
-    const rows = await env.D1.prepare('SELECT * FROM sub_keys ORDER BY created_at DESC LIMIT 200').all()
-    return json(200, rows.results || [])
-  }
-  return json(405, { error: 'Method Not Allowed' })
-}
+// Admin-level key management is in admin/keys.js

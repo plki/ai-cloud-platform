@@ -65,3 +65,4 @@ body {
 .btn.danger { background: #f04142; border-color: #f04142; color: #fff; }
 .btn.danger:hover { background: #d93838; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
