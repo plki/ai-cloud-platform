@@ -1,0 +1,31 @@
+name: Deploy Frontend
+
+on:
+  push:
+    branches: [main]
+    paths: ['front/**']
+  workflow_dispatch:
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./front
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: front/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          projectName: ai-cloud-platform
+          directory: front/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
