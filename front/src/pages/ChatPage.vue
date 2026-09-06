@@ -218,28 +218,22 @@ async function processStream(res) {
     if (done) break
     buf += decoder.decode(value, { stream: true })
 
-    const lines = buf.split('\n')
-    buf = lines.pop() || ''
-
-    for (const raw of lines) {
-      const line = raw.trim()
-      if (!line || !line.startsWith('data: ')) continue
-      const data = line.slice(6).trim()
-      if (data === '[DONE]') continue
+    let idx
+    while ((idx = buf.indexOf('\n\n')) !== -1) {
+      const raw = buf.slice(0, idx)
+      buf = buf.slice(idx + 2)
 
       let event = 'message'
-      let payload = data
-      if (line.startsWith('event: ')) {
-        const parts = raw.split('\n')
-        for (const p of parts) {
-          if (p.startsWith('event: ')) event = p.slice(7).trim()
-          if (p.startsWith('data: ')) payload = p.slice(6).trim()
-        }
+      let data = ''
+      for (const l of raw.split('\n')) {
+        if (l.startsWith('event:')) event = l.slice(6).trim()
+        else if (l.startsWith('data:')) data += l.slice(5).trim()
       }
+      if (!data || data === '[DONE]') continue
 
-      if (event === 'message' || event === 'chunk') {
+      if (event === 'message') {
         try {
-          const j = JSON.parse(payload)
+          const j = JSON.parse(data)
           const delta = j.choices?.[0]?.delta?.content || ''
           if (delta) {
             const c = chat.getCurrent()
@@ -249,24 +243,19 @@ async function processStream(res) {
             }
           }
         } catch {}
-      }
-
-      // Multi-model: model-0, model-1, ...
-      if (event.startsWith('model-') && !event.endsWith('-error') && !event.endsWith('-done')) {
+      } else if (event.startsWith('model-') && !event.endsWith('-error')) {
         try {
-          const j = JSON.parse(payload)
+          const j = JSON.parse(data)
           const delta = j.choices?.[0]?.delta?.content || ''
-          const idx = event.replace('model-', '')
-          const model = chat.selectedModels[parseInt(idx)]
+          const modelIdx = parseInt(event.replace('model-', ''))
+          const model = chat.selectedModels[modelIdx]
           if (delta && model) {
             modelPrefix[model] = (modelPrefix[model] || '') + delta
           }
         } catch {}
-      }
-
-      if (event.endsWith('-error')) {
+      } else if (event.endsWith('-error')) {
         try {
-          const j = JSON.parse(payload)
+          const j = JSON.parse(data)
           const c = chat.getCurrent()
           if (c) {
             c.messages.push({ role: 'assistant', content: `[${j.model} 出错] ${j.error}` })
@@ -289,6 +278,7 @@ async function processStream(res) {
       last.content = summary
     }
   }
+  chat.saveConvs()
 }
 
 async function onUpload(file) {
