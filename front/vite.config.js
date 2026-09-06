@@ -9,6 +9,7 @@ export default defineConfig({
     assetsDir: 'assets',
   },
   server: {
+    allowedHosts: ['.monkeycode-ai.online'],
     proxy: {
       '/api': {
         target: 'http://localhost:8787',

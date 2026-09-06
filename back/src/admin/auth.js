@@ -64,7 +64,7 @@ export async function handleAdminLogin(request, env) {
 
 export async function handleAdminLogout(request, env) {
   if (request.method === 'OPTIONS') return handleOptions()
-  if (request.method !== 'POST') return json(200, { ok: true }, { 'Set-Cookie': clearCookie() })
+  if (request.method !== 'POST') return json(405, { error: '仅支持 POST' })
 
   const cookie = request.headers.get('Cookie') || ''
   const match = cookie.match(/aicp_admin=([^;]+)/)

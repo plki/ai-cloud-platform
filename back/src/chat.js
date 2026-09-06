@@ -155,7 +155,34 @@ async function streamSingle(model, messages, baseUrl, apiKey, env, start, logMet
     return json(502, { error: `上游错误: ${t.slice(0, 500)}` })
   }
 
-  return new Response(upstream.body, {
+// Tee 上游响应体：一路给客户端（SSE），另一路解析 usage 用于记录日志
+  const [clientStream, logStream] = upstream.body.tee()
+  let promptTokens = 0, completionTokens = 0, totalTokens = 0
+  ;(async () => {
+    try {
+      const reader = logStream.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+      }
+      try {
+        const usage = JSON.parse(buf)?.usage
+        if (usage) {
+          promptTokens = usage.prompt_tokens || 0
+          completionTokens = usage.completion_tokens || 0
+          totalTokens = usage.total_tokens || 0
+        }
+      } catch {}
+      recordLog(env, { ...logMeta, model, promptTokens, completionTokens, totalTokens, latency_ms: Date.now() - start })
+    } catch (e) {
+      console.error('streamSingle log error:', e.message)
+    }
+  })()
+
+  return new Response(clientStream, {
     status: 200,
     headers: {
       'Content-Type': 'text/event-stream; charset=utf-8',
