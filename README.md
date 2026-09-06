@@ -1,3 +1,9 @@
+# ⚠️ 重要免责声明 — 请在部署前阅读
+
+**本项目按"原样"提供，不提供任何明示或暗示的保证。使用本项目产生的所有安全风险、数据泄露、账单超支等后果，由您自行承担。请务必阅读完整的 [DISCLAIMER.md](DISCLAIMER.md) 再进行部署。**
+
+---
+
 # AI Cloud Platform v2
 
 云端 AI 对话平台，前后端分离架构。
@@ -19,6 +25,15 @@
 | 后端 | Cloudflare Workers (ES Modules) |
 | 存储 | KV（配置/会话） + D1（子 Key/日志） + R2（文件） |
 | 部署 | Cloudflare Pages + Workers（GitHub Actions 自动） |
+
+## ⚠️ 部署前必读
+
+1. **安全自检**：部署前请阅读 [DISCLAIMER.md](DISCLAIMER.md)，了解所有安全风险和您的责任
+2. **强密码**：管理员密码至少 16 位，含大小写字母、数字和特殊字符
+3. **访问控制**：务必使用 Cloudflare Access 或其他方式保护 `/admin/*` 路径，禁止公网访问管理后台
+4. **API Key 轮换**：首次部署后立即轮换所有上游 API Key
+5. **费用告警**：在 Cloudflare Dashboard 设置 D1/KV/Workers 操作的预算告警
+6. **定期备份**：KV 和 D1 数据由您自行负责备份
 
 ## 部署
 
@@ -79,4 +94,4 @@ npm run dev
 
 ## 许可证
 
-MIT
+MIT — 详见 [LICENSE](LICENSE) 和 [DISCLAIMER.md](DISCLAIMER.md)
